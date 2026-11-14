@@ -1,7 +1,7 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 module.exports={
     "name": "spotify-listen-together",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "scripts": {
         "build": "rm -rf ./dist && tsc && cp ./src/public ./dist/src/ -r && browserify -t browserify-css dist/src/index.js -o dist/src/bundle.js",
         "pushSpotify": "./scripts/pushSpotify.sh",
@@ -62,7 +62,7 @@ class Client {
     connect(server) {
         if (!server)
             server = this.ltPlayer.settingsManager.settings.server || settings_1.DEFAULT_SERVER;
-        const label = () => this.roomCode ? `room ${this.roomCode}` : "the server";
+        const label = () => this.roomCode || "new";
         if ((0, spotifyUtils_1.getCurrentTrackUri)() != "") {
             (0, spotifyUtils_1.forcePlayTrack)("");
             setTimeout(() => this.connect(server), 100);
@@ -120,7 +120,7 @@ class Client {
             this.ltPlayer.ui.windowMessage(message);
         });
         this.socket.on("listeners", (clients) => {
-            this.ltPlayer.ui.renderBottomInfo(react_1.default.createElement(bottomInfo_1.default, { server: label(), listeners: clients }));
+            this.ltPlayer.ui.renderBottomInfo(react_1.default.createElement(bottomInfo_1.default, { server: label(), listeners: clients, me: this.ltPlayer.settingsManager.settings.name }));
         });
         this.socket.on("isHost", (isHost) => {
             // In rooms everyone may control playback, so this is set silently.
@@ -652,42 +652,38 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const react_1 = __importDefault(require("react"));
-const styles = {
-    textContainer: {
-        fontSize: '14px',
-        position: 'absolute',
-        display: 'flex',
-        justifyContent: 'space-between',
-        width: '100%',
-        left: '0',
-        bottom: '0',
-        maxHeight: '22px'
-    }
-};
+// A stable colour per listener name, so each person keeps the same avatar colour.
+function ltHue(name) {
+    let h = 0;
+    for (const c of String(name))
+        h = (h * 31 + c.charCodeAt(0)) % 360;
+    return h;
+}
+// props.server: "" = not in a room, "new" = creating a room (no code yet), otherwise the room code.
 function BottomInfo(props) {
-    return react_1.default.createElement("div", { style: styles.textContainer }, !!props.server ? react_1.default.createElement(react_1.default.Fragment, null,
-        react_1.default.createElement("span", { style: { maxHeight: '22px', overflow: 'hidden', maxWidth: '50%' } }, `Listen Together ${props.loading ? "trying to connect" : "connected"} to ${props.server}`),
-        props.loading ? react_1.default.createElement(react_1.default.Fragment, null) : react_1.default.createElement("span", { style: { maxHeight: '22px', overflow: 'hidden', maxWidth: '50%' } },
-            `Listeners: `,
-            " ",
-            props.listeners ? props.listeners.map((listener, i) => {
-                let color = "";
-                let title = "Listener";
-                if (listener.isHost && listener.watchingAD) {
-                    color = "LimeGreen";
-                    title = "Host and watching an AD";
-                }
-                else if (listener.watchingAD) {
-                    color = "LimeGreen";
-                    title = "Watching an AD";
-                }
-                else if (listener.isHost) {
-                    color = "Orange";
-                    title = "Host";
-                }
-                return react_1.default.createElement("span", { key: i, title: title, style: { color: color } }, listener.name + (i !== props.listeners.length - 1 ? ", " : ""));
-            }) : ""))
-        : react_1.default.createElement(react_1.default.Fragment, null));
+    const e = react_1.default.createElement;
+    if (!props.server)
+        return e(react_1.default.Fragment, null);
+    const code = props.server === "new" ? "" : props.server;
+    const listeners = props.listeners || [];
+    let meMarked = false;
+    return e("div", { className: "lt-bar" + (props.loading ? " lt-loading" : "") },
+        e("span", { className: "lt-dot" }),
+        e("span", { className: "lt-title" }, "Listen Together"),
+        code ? e("button", { className: "lt-room", "data-lt-copy": "", title: "Copy room code" }, code, e("small", null, "copy")) : null,
+        props.loading ? e("span", { className: "lt-count" }, "Connecting...") : null,
+        e("span", { className: "lt-spacer" }),
+        listeners.length ? e("span", { className: "lt-count" }, listeners.length === 1 ? "Only you here" : `${listeners.length} listening`) : null,
+        e("span", { className: "lt-people" }, listeners.map((l, i) => {
+            const name = String(l.name || "?");
+            const isMe = !meMarked && name === props.me;
+            if (isMe)
+                meMarked = true;
+            return e("span", { key: i, className: "lt-person" + (isMe ? " lt-me" : ""), title: name + (isMe ? " (you)" : "") + (l.watchingAD ? " - on an ad" : "") },
+                e("span", { className: "lt-avatar", style: { background: `hsl(${ltHue(name)}, 70%, 60%)` } }, Array.from(name)[0]),
+                e("span", { className: "lt-name" }, name),
+                l.watchingAD ? e("span", { className: "lt-tag" }, "AD") : null);
+        })));
 }
 exports.default = BottomInfo;
 
@@ -723,7 +719,7 @@ var Popup;
                         react_1.default.createElement("input", { onInput: (e) => {
                                 if (this.props.onInput)
                                     this.props.onInput(e.currentTarget.value);
-                            }, className: 'main-playlistEditDetailsModal-titleInput', type: 'text', defaultValue: this.props.defaultValue || "", placeholder: this.props.example || "" }))));
+                            }, className: 'lt-input', type: 'text', defaultValue: this.props.defaultValue || "", placeholder: this.props.example || "" }))));
         }
     }
     Popup.Textbox = Textbox;
@@ -758,7 +754,7 @@ var Popup;
     function create(title, closed, buttonNames, content) {
         let buttons = [];
         buttonNames.forEach((btnName) => {
-            buttons.push(react_1.default.createElement("button", { className: 'main-buttons-button main-button-secondary main-playlistEditDetailsModal-save', style: styles.button, type: 'button', onClick: () => {
+            buttons.push(react_1.default.createElement("button", { className: 'lt-btn', type: 'button', onClick: () => {
                     closed(btnName);
                 } }, btnName));
         });
@@ -798,6 +794,8 @@ const ListenTogetherIcon_1 = __importDefault(require("./ListenTogetherIcon"));
 const package_json_1 = __importDefault(require("../../package.json"));
 const settings_1 = require("../settings");
 const css = require('../public/ui.css');
+const REPO_URL = "https://github.com/kakaa511/spotify-listen-together-rooms";
+const LT_BAR_CSS = "#listenTogether-bottomInfo:empty { display: none; }\n.lt-bar {\n  display: flex; align-items: center; gap: 10px;\n  height: 34px; margin-top: 6px; padding: 0 12px 0 14px;\n  border-radius: 8px;\n  background: linear-gradient(90deg, rgba(30, 215, 138, .20), rgba(72, 118, 227, .20) 55%, rgba(190, 127, 221, .20));\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);\n  color: #fff; font-size: 13px; line-height: 1; white-space: nowrap; overflow: hidden;\n}\n.lt-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #1ed760; box-shadow: 0 0 0 0 rgba(30, 215, 96, .7); animation: lt-pulse 2s infinite; }\n.lt-bar.lt-loading .lt-dot { background: #f5c542; animation-duration: .8s; }\n@keyframes lt-pulse { 0% { box-shadow: 0 0 0 0 rgba(30, 215, 96, .6); } 70% { box-shadow: 0 0 0 7px rgba(30, 215, 96, 0); } 100% { box-shadow: 0 0 0 0 rgba(30, 215, 96, 0); } }\n.lt-title { flex: none; font-weight: 700; }\n.lt-room {\n  flex: none; display: inline-flex; align-items: center; gap: 6px;\n  height: 22px; padding: 0 10px; border: 0; border-radius: 999px;\n  background: rgba(255, 255, 255, .14); color: #fff; cursor: pointer;\n  font: inherit; font-weight: 700; letter-spacing: 2px;\n}\n.lt-room:hover { background: rgba(255, 255, 255, .26); }\n.lt-room small { font-size: 11px; font-weight: 400; letter-spacing: 0; opacity: .7; }\n.lt-spacer { flex: 1 1 auto; min-width: 8px; }\n.lt-count { flex: none; opacity: .7; }\n.lt-people { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }\n.lt-person {\n  flex: 0 1 auto; display: inline-flex; align-items: center; gap: 6px; min-width: 0;\n  height: 24px; padding: 0 10px 0 2px; border-radius: 999px;\n  background: rgba(0, 0, 0, .35);\n}\n.lt-person.lt-me { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .45); }\n.lt-avatar { flex: none; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #000; text-transform: uppercase; }\n.lt-name { min-width: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }\n.lt-tag { flex: none; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 4px; background: #f5c542; color: #000; }\n.lt-btn { height: 36px; min-width: 110px; padding: 0 22px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .35); background: transparent; color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }\n.lt-btn:hover { border-color: #fff; transform: scale(1.03); }\ntd:first-child > div > .lt-btn { background: #1ed760; border-color: transparent; color: #000; }\ntd:first-child > div > .lt-btn:hover { background: #3be477; }\n.lt-input { width: 100%; min-width: 220px; height: 38px; padding: 0 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .08); color: #fff; font: inherit; font-size: 14px; outline: none; }\n.lt-input:focus { border-color: #fff; }\n.lt-input::placeholder { color: rgba(255, 255, 255, .4); }\n";
 class UI {
     constructor(ltPlayer) {
         this.ltPlayer = ltPlayer;
@@ -809,7 +807,17 @@ class UI {
                 clearInterval(loop);
                 this.bottomInfoContainer = document.createElement("div");
                 this.bottomInfoContainer.id = "listenTogether-bottomInfo";
-                playingBar.appendChild(this.bottomInfoContainer);
+                // Sits as its own row under the player controls.
+                (document.querySelector(".Root__now-playing-bar") || playingBar).appendChild(this.bottomInfoContainer);
+                const style = document.createElement("style");
+                style.textContent = LT_BAR_CSS;
+                document.head.appendChild(style);
+                this.bottomInfoContainer.addEventListener("click", (e) => {
+                    if (e.target.closest("[data-lt-copy]"))
+                        this.copyRoomCode();
+                    else if (e.target.closest(".lt-people"))
+                        this.openMenu();
+                });
                 this.renderBottomInfo(react_1.default.createElement(bottomInfo_1.default, { server: "" }));
             }
         }, 100);
@@ -943,8 +951,17 @@ class UI {
         ]);
     }
     onClickAbout() {
-        popup_1.Popup.create("Listen Together", () => { popup_1.Popup.close(); }, [], [
-            react_1.default.createElement(popup_1.Popup.Text, { text: `Listen Together v${package_json_1.default.version}. Originally created by FlafyDev, rooms version maintained separately.`, centered: false }),
+        const e = react_1.default.createElement;
+        popup_1.Popup.create("About", (btn) => {
+            if (btn === "GitHub")
+                window.open(REPO_URL);
+            popup_1.Popup.close();
+        }, ["GitHub", "Close"], [
+            react_1.default.createElement(popup_1.Popup.Text, { text: e("div", { style: { textAlign: 'center', lineHeight: 1.7 } },
+                    e("div", { style: { fontSize: '22px', fontWeight: 700 } }, "Listen Together"),
+                    e("div", { style: { fontSize: '13px', opacity: 0.7 } }, `Version ${package_json_1.default.version}`),
+                    e("div", { style: { marginTop: '14px' } }, "Created by ", e("b", null, "FlafyDev")),
+                    e("div", null, "Developed by ", e("b", null, "ARO"))) }),
         ]);
     }
     renderBottomInfo(bottomInfo) {

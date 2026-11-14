@@ -44,4 +44,5 @@ change `DEFAULT_SERVER` in `listenTogether.js`.
 
 ## Credits
 
-Original extension and server by [FlafyDev](https://github.com/FlafyDev), MIT license.
+Created by [FlafyDev](https://github.com/FlafyDev) (original extension and server, MIT license).
+Rooms version developed by ARO ([kakaa511](https://github.com/kakaa511)).

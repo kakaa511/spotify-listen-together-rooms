@@ -4,8 +4,8 @@
   "main": "listenTogether.js",
   "readme": "README.md",
   "authors": [
-    { "name": "kakaa511", "url": "https://github.com/kakaa511" },
-    { "name": "FlafyDev (original)", "url": "https://github.com/FlafyDev" }
+    { "name": "ARO", "url": "https://github.com/kakaa511" },
+    { "name": "FlafyDev (creator)", "url": "https://github.com/FlafyDev" }
   ],
   "tags": ["listen together", "sync", "friends", "rooms"]
 }
