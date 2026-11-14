@@ -417,6 +417,14 @@ class Patcher {
                     }
                 }
             }, () => {
+                // PATCH: picking the song that is already playing restarts it for the whole room
+                // (the server only announces a song change when the track is different).
+                const current = (0, spotifyUtils_1.getCurrentTrackUri)();
+                const picked = (options?.skipTo?.uri) || (uri?.uri);
+                if (options?.ltForced !== true && current && picked === current) {
+                    this.ltPlayer.requestUpdateSong(false, 0);
+                    return;
+                }
                 this.ltPlayer.muteBeforePlay();
                 exports.OGFunctions.play(uri, origins, options);
             }, this.ltPlayer.isHost || (options === null || options === void 0 ? void 0 : options.ltForced) === true);
@@ -511,7 +519,7 @@ class SettingsManager {
 }
 exports.default = SettingsManager;
 // The public server everyone uses unless they set their own in "Server settings".
-exports.DEFAULT_SERVER = "http://localhost:3000";
+exports.DEFAULT_SERVER = "https://spotify-listen-together-rooms.onrender.com";
 
 },{}],9:[function(require,module,exports){
 "use strict";

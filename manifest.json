@@ -1,0 +1,11 @@
+{
+  "name": "Listen Together (rooms)",
+  "description": "Listen to the same song in sync with friends. Create a room, share the code. No Premium needed.",
+  "main": "listenTogether.js",
+  "readme": "README.md",
+  "authors": [
+    { "name": "kakaa511", "url": "https://github.com/kakaa511" },
+    { "name": "FlafyDev (original)", "url": "https://github.com/FlafyDev" }
+  ],
+  "tags": ["listen together", "sync", "friends", "rooms"]
+}
