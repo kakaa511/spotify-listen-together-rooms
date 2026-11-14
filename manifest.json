@@ -1,6 +1,7 @@
 {
   "name": "Listen Together (rooms)",
   "description": "Listen to the same song in sync with friends. Create a room, share the code. No Premium needed.",
+  "preview": "preview.png",
   "main": "listenTogether.js",
   "readme": "README.md",
   "authors": [
